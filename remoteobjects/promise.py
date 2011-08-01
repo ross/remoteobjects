@@ -158,6 +158,16 @@ class PromiseObject(remoteobjects.http.HttpObject):
         self._http = http
         self._delivered = False
 
+        if url is None:
+            raise PromiseError('Instance %r has no URL from which to deliver' % (self,))
+
+        http = self._http
+        if self._http is None:
+            http = remoteobjects.http.userAgent
+
+        request = self.get_request()
+        self.__http_promise = http.request(**request)
+
         return self
 
     def head(self, http=None, **kwargs):
@@ -169,6 +179,9 @@ class PromiseObject(remoteobjects.http.HttpObject):
         resp._location = self._location
         resp._http = http
         resp._method = 'HEAD'
+
+        # TODO: async?
+
         return resp
 
     def options(self, http=None, **kwargs):
@@ -180,6 +193,9 @@ class PromiseObject(remoteobjects.http.HttpObject):
         resp._location = self._location
         resp._http = http
         resp._method = 'OPTIONS'
+
+        # TODO: async?
+
         return resp
 
     def __setattr__(self, name, value):
@@ -203,15 +219,11 @@ class PromiseObject(remoteobjects.http.HttpObject):
         """
         if self._delivered:
             raise PromiseError('%s instance %r has already been delivered' % (type(self).__name__, self))
-        if self._location is None:
-            raise PromiseError('Instance %r has no URL from which to deliver' % (self,))
 
-        http = self._http
-        if self._http is None:
-            http = remoteobjects.http.userAgent
+        response = self.__http_promise.response
+        content = self.__http_promise.content
 
         request = self.get_request()
-        response, content = http.request(**request)
         self.update_from_response(request['uri'], response, content)
 
     def update_from_dict(self, data):
